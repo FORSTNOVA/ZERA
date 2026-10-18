@@ -1,0 +1,49 @@
+<!--
+    Starfield.Dark.xaml —— 深色主题的星空背景层（画刷）
+    ============================================================
+    【2026-10-14 星空主题改版】新增的一层。
+
+    【为什么单独一层字典，而不是写进 Brushes.xaml】
+    Brushes.xaml 里的画刷是 `Color="{DynamicResource XxxColor}"` 这种**引用**，
+    换主题时要靠 ThemeManager 把整个 Brushes 字典重挂才会重新求值（见
+    ThemeManager.RemountBrushes 的实测说明）。而星空贴图是**整张图片**、
+    亮暗两份完全不同，必须整层换掉才能切换。
+
+    【为什么排在 Brushes 之后】
+    本字典**刻意覆盖** Brushes.xaml 里的 AppBgBrush / SidebarBrush 两个键
+    （把纯色画刷换成星空贴图画刷）。WPF 的 MergedDictionaries 是"后定义的键赢"，
+    所以必须排在 Brushes 之后，否则会被 Brushes 的纯色版覆盖掉。
+
+    【基色为什么要和 AppBgColor 严格对齐】
+    贴图是按 512×512 无缝平铺的，基色写成 #0A0E1C —— 与 Colors.Dark 的
+    AppBgColor 一模一样。这样贴图边缘和纯色区域之间不会有可见的接缝，
+    窗口拉大/缩小、分屏不同尺寸时都看不出一格一格的边界。
+
+    【只覆盖两个键，不动别的】
+    AppBgBrush  → 内容区背景（主窗、TabControl 内容宿主、设置页色板预览）
+    SidebarBrush → 侧栏背景（原来是纯色，这里换成更稀的星空）
+    其余 SurfaceBrush 等一概不覆盖：卡片上要放文字，铺满星星会影响可读性。
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 内容区：深空星图。512×512 原尺寸平铺，不缩放，星点大小才一致。 -->
+    <ImageBrush x:Key="AppBgBrush"
+                ImageSource="/ZERA;component/Resources/starfield-dark.png"
+                TileMode="Tile"
+                ViewportUnits="Absolute"
+                Viewport="0,0,512,512"
+                Stretch="Fill"
+                AlignmentX="Left" AlignmentY="Top"/>
+
+    <!-- 侧栏：同一片星空但更稀（另一张贴图，基色 = SurfaceColor #121829），
+         让侧栏比内容区亮一档，同时不会和内容区"抢星星"。 -->
+    <ImageBrush x:Key="SidebarBrush"
+                ImageSource="/ZERA;component/Resources/starfield-surface-dark.png"
+                TileMode="Tile"
+                ViewportUnits="Absolute"
+                Viewport="0,0,512,512"
+                Stretch="Fill"
+                AlignmentX="Left" AlignmentY="Top"/>
+
+</ResourceDictionary>

@@ -1,0 +1,70 @@
+<Window x:Class="ZERA.TorrentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="种子 / 磁力下载" MinWidth="820" MinHeight="560"
+        Background="{DynamicResource AppBgBrush}"
+        TextOptions.TextFormattingMode="Display">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="种子 / 磁力下载" Style="{StaticResource PageTitleText}"/>
+            <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource TertiaryText}"
+                       Text="支持 BT v1 种子和磁力链接，无需网盘账号。下载期间参与上传，普通与拆分模式各限 256 KiB/s，完成后停止做种。"/>
+        </StackPanel>
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBox x:Name="MagnetBox" Style="{StaticResource AppTextBox}" VerticalContentAlignment="Center"
+                     MinHeight="34" AutomationProperties.Name="磁力链接" ToolTip="粘贴 magnet:?xt=urn:btih:…"/>
+            <Button x:Name="AddMagnetButton" Grid.Column="1" Content="添加磁力" Click="OnAddMagnet"
+                    Style="{StaticResource PrimaryButton}" Margin="8,0,0,0"/>
+            <Button x:Name="AddTorrentButton" Grid.Column="2" Content="打开种子…" Click="OnAddTorrent"
+                    Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"/>
+        </Grid>
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Text="下载到" VerticalAlignment="Center" Style="{StaticResource TertiaryText}" Margin="0,0,10,0"/>
+            <TextBox Grid.Column="1" x:Name="DirectoryBox" Style="{StaticResource AppTextBox}" VerticalContentAlignment="Center"
+                     MinHeight="32" AutomationProperties.Name="BT 下载目录"/>
+            <Button Grid.Column="2" Content="选择目录…" Click="OnChooseDirectory" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"/>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                <ComboBox x:Name="SplitCountBox" SelectedIndex="1" Width="72" VerticalContentAlignment="Center" AutomationProperties.Name="独立子任务数量">
+                    <ComboBoxItem Content="2 任务" Tag="2"/><ComboBoxItem Content="4 任务" Tag="4"/><ComboBoxItem Content="8 任务" Tag="8"/>
+                </ComboBox>
+                <Button x:Name="AddSplitButton" Content="拆分种子…" Click="OnAddSplit" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                        ToolTip="把本地种子的不同块范围分配给独立子任务，全部完成并校验后合并。不保证更快；按（子任务数 + 2）倍内容大小预留磁盘空间，支持稀疏文件时实际可能更少。"/>
+            </StackPanel>
+        </Grid>
+        <WrapPanel Grid.Row="3" Margin="0,0,0,10">
+            <Button x:Name="PauseButton" Content="暂停" Click="OnPause" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+            <Button x:Name="ResumeButton" Content="继续" Click="OnResume" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+            <Button x:Name="RemoveButton" Content="移除任务" Click="OnRemove" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+            <Button Content="打开文件夹" Click="OnOpenDirectory" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+            <Button Content="刷新" Click="OnRefresh" Style="{StaticResource SecondaryButton}"/>
+            <Button x:Name="TrackersButton" Content="Tracker 管理…" Click="OnTrackers" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"/>
+        </WrapPanel>
+        <ListView Grid.Row="4" x:Name="TorrentList" SelectionMode="Single"
+                  Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                  BorderBrush="{DynamicResource BorderBrushSoft}" SelectionChanged="OnSelectionChanged"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="任务" Width="220" DisplayMemberBinding="{Binding Name}"/>
+                    <GridViewColumn Header="状态" Width="110" DisplayMemberBinding="{Binding StateText}"/>
+                    <GridViewColumn Header="进度" Width="80" DisplayMemberBinding="{Binding ProgressText}"/>
+                    <GridViewColumn Header="下载速度" Width="100" DisplayMemberBinding="{Binding DownloadText}"/>
+                    <GridViewColumn Header="上传速度" Width="100" DisplayMemberBinding="{Binding UploadText}"/>
+                    <GridViewColumn Header="连接数" Width="65" DisplayMemberBinding="{Binding Connections}"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+        <StackPanel Grid.Row="5" Margin="0,12,0,0">
+            <TextBlock x:Name="StatusText" Text="正在启动 BT 引擎…" TextWrapping="Wrap" Style="{StaticResource TertiaryText}"/>
+            <TextBlock Text="拆分模式：子任务下载不重叠的块，可单独暂停/继续；选中分组行控制整组，完成后自动校验合并到 result 目录。最多启动一组；分片保留，磁盘按（子任务数 + 2）倍内容大小预留。关闭窗口继续下载，重启后手动继续。"
+                       TextWrapping="Wrap" Style="{StaticResource TertiaryText}" Margin="0,6,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>

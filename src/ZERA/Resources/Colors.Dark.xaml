@@ -1,0 +1,99 @@
+<!--
+    Colors.Dark.xaml —— 深色主题设计令牌（「深空」）
+    ============================================================
+    【2026-10-14 星空主题改版】整套配色从"中性深灰"改成"深空蓝黑"。
+
+    设计思路：
+    1. **底色带蓝，而不是纯灰**。#0A0E1C 这类偏蓝的近黑色是夜空的实际观感，
+       中性灰（旧版 #1A1D23）看起来像"关掉的灯"，深空蓝看起来像"夜空"。
+    2. **层次靠蓝相明度，不靠描边**：AppBg #0A0E1C → Surface #121829 →
+       SurfaceAlt #1A2138，每一档都保持同一个蓝相、只提明度，
+       所以并排时是"一层层浮起来"而不是"一块块拼起来"。
+    3. **主色用"星靛" #7C8CFF**：比旧版靛蓝 #5B74F0 更亮、更冷。
+       大面积深底上，偏亮的冷色才像星光；偏暗的暖色会显得脏。
+    4. **文字按 WCAG 重算**（对 #0A0E1C 底）：
+         TextPrimary   #E9ECF7 ≈ 16.3:1
+         TextSecondary #A6AEC9 ≈  8.7:1
+         TextTertiary  #828BB0 ≈  5.7:1   （次要说明 ≥4.5:1）
+         ⚠️ TextTertiary 不能用 #7C85A8：在 SurfaceAlt #1A2138 上只有 4.38:1，
+            差一点点不到 4.5。下调一档明度到 #828BB0 后最差也有 4.75:1。
+    5. **TextOnPrimary 必须是深色，不能是白色**：
+         本主题的主色 #7C8CFF 是**亮色**，白字压上去只有 2.98:1（远低于 4.5），
+         按钮文字会糊成一片。所以这里用和 AppBg 同色的 #0A0E1C，
+         在主色/悬停/按下三态上分别是 6.46 / 7.64 / 5.15:1，全部达标。
+         （浅色主题那边主色是深色，白字是对的 —— 两个主题这里必须相反。）
+    6. **描边分两档**：Border 只用于卡片分隔（1.34:1，纯装饰，不需要对比度）；
+         BorderStrong 用于**输入框边框**，这是 WCAG 1.4.11 意义上的
+         "UI 组件边界"，必须 ≥3:1，所以给到 #5A67A4。
+    7. **阴影纯黑**：深色界面里偏蓝的深色做阴影几乎不可见。
+
+    与 Colors.Light.xaml 逐键对应（各 36 个），键名一个不多一个不少。
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ────────── 背景 / 表面（同一蓝相，逐档提明度） -->
+    <Color x:Key="AppBgColor">#FF0A0E1C</Color>
+    <Color x:Key="SurfaceColor">#FF121829</Color>
+    <Color x:Key="SurfaceAltColor">#FF1A2138</Color>
+    <!-- Sunken = 比 AppBg 更暗（凹槽感），深空里"再暗一档" -->
+    <Color x:Key="SurfaceSunkenColor">#FF070A14</Color>
+
+    <!-- ────────── 主色（星靛，全应用唯一强调色；深底上提亮以保持醒目） -->
+    <Color x:Key="PrimaryColor">#FF7C8CFF</Color>
+    <Color x:Key="PrimaryHoverColor">#FF8E9CFF</Color>
+    <Color x:Key="PrimaryPressedColor">#FF6A7AEE</Color>
+    <!-- ⚠️ 亮色版是"淡色块"，这里必须反转为"深色块" -->
+    <Color x:Key="PrimaryLightColor">#FF1E2547</Color>
+    <Color x:Key="PrimarySoftColor">#FF262F55</Color>
+
+    <!-- ────────── 语义色（深底上略提亮，保持可辨） -->
+    <Color x:Key="SuccessColor">#FF3DD68C</Color>
+    <Color x:Key="SuccessLightColor">#FF10261F</Color>
+    <Color x:Key="WarningColor">#FFF5B93B</Color>
+    <Color x:Key="WarningLightColor">#FF2B210C</Color>
+    <Color x:Key="DangerColor">#FFFF6B6B</Color>
+    <Color x:Key="DangerLightColor">#FF33161A</Color>
+
+    <!-- ────────── 文字 -->
+    <Color x:Key="TextPrimaryColor">#FFE9ECF7</Color>
+    <Color x:Key="TextSecondaryColor">#FFA6AEC9</Color>
+    <Color x:Key="TextTertiaryColor">#FF828BB0</Color>
+    <!-- ⚠️ 这里必须是**深色**。本主题主色是亮色 #7C8CFF，白字压上去只有
+         2.98:1（见文件头说明 5）。用 AppBg 同色则三态都 ≥5:1。 -->
+    <Color x:Key="TextOnPrimaryColor">#FF0A0E1C</Color>
+
+    <!-- ────────── 阴影（深色界面里偏蓝的深灰几乎不可见 → 用纯黑） -->
+    <Color x:Key="ShadowColor">#FF000000</Color>
+    <Color x:Key="ShadowStrongColor">#FF000000</Color>
+
+    <!-- ────────── 头像底色（深底上略降饱和，避免过于跳脱） -->
+    <Color x:Key="AvatarTint1Color">#FF7C8CFF</Color>
+    <Color x:Key="AvatarTint2Color">#FF9B7FF2</Color>
+    <Color x:Key="AvatarTint3Color">#FF38C6C6</Color>
+    <Color x:Key="AvatarTint4Color">#FFFF9A6B</Color>
+    <Color x:Key="AvatarTint5Color">#FFFF7BA3</Color>
+
+    <!-- ────────── 容量占用率色阶（状态色编码：越满越警示） -->
+    <Color x:Key="CapacityLowColor">#FF3DD68C</Color>
+    <Color x:Key="CapacityMidColor">#FFF5B93B</Color>
+    <Color x:Key="CapacityHighColor">#FFFF6B6B</Color>
+
+    <!-- ────────── 描边 / 分隔（深底上用"提亮"表达边界，而不是白线）
+         Border      → 卡片分隔，纯装饰（1.34:1 无妨）
+         BorderStrong → **输入框边框**，属 WCAG 1.4.11 的 UI 组件边界，
+                        对 AppBg 3.58:1 / 对 Surface 3.29:1，均 ≥3:1 -->
+    <Color x:Key="BorderColor">#FF20284A</Color>
+    <Color x:Key="BorderStrongColor">#FF5A67A4</Color>
+
+    <!-- ────────── 滚动条 -->
+    <Color x:Key="ScrollThumbColor">#FF333B5E</Color>
+    <Color x:Key="ScrollThumbHoverColor">#FF4A5478</Color>
+
+    <!-- ────────── 标题栏 -->
+    <Color x:Key="TitleBarColor">#FF0C1122</Color>
+    <Color x:Key="TitleBarHoverColor">#FF1B2138</Color>
+    <!-- 关闭按钮悬停红：深色下略降亮度，避免刺眼 -->
+    <Color x:Key="TitleBarCloseHoverColor">#FFD62E3D</Color>
+
+</ResourceDictionary>
