@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/..'))=/_/src</PathMap>
+    <NoWarn>$(NoWarn);SYSLIB0014;SYSLIB0021;SYSLIB0045;SYSLIB0057;CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ZERA.Core/**/*.cs" Exclude="../ZERA.Core/obj/**;../ZERA.Core/bin/**;../ZERA.Core/Support/QrDecoder.cs;../ZERA.Core/Support/SecretProtector.cs;../ZERA.Core/Api/QuarkPythonBridge.cs" />
+    <Compile Include="Compatibility/*.cs" />
+  </ItemGroup>
+</Project>

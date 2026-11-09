@@ -608,3 +608,9 @@ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
+
+## Android 原生 BT 组件
+
+Android 预览版包含 libtorrent4j 2.1.0-39（MIT）及其原生 libtorrent 库（BSD-3-Clause），并附带 Boost（BSL-1.0）和 OpenSSL（Apache-2.0）的许可文本。来源、固定版本和 SHA-256 见 src/ZERA.Android/Libraries/PROVENANCE.md；许可文本随源码与 APK 的 assets/licenses/ 分发。ZERA 新增的 Android 桥接代码继续使用项目 GPL-3.0 许可。
+
+Android 图片识别还包含 ZXing.Net 0.16.11 的 netstandard2.0 程序集（Apache-2.0）。图片在设备本地解码；固定来源、程序集哈希与上游许可证见同一 PROVENANCE.md 及 APK 的 assets/licenses/zxing-LICENSE.txt。

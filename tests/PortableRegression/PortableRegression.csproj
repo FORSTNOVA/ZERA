@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Scenario Condition="'$(Scenario)' == ''">DownloadRegression</Scenario>
+    <OutputPath>bin/$(Scenario)/</OutputPath>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);SYSLIB0014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/ZERA.Portable/ZERA.Portable.csproj" />
+    <Compile Include="../$(Scenario)/*.cs" />
+    <Compile Include="../TorrentRegression/LocalSwarm.cs" Condition="'$(Scenario)' == 'TrackerRegression'" />
+    <None Include="../../src/ZERA.Core/Runtime/**/*" Link="Runtime/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Condition="'$(Scenario)' == 'TrackerRegression'" />
+  </ItemGroup>
+</Project>

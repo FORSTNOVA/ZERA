@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>28</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <ApplicationId>com.zera.downloader</ApplicationId>
+    <ApplicationTitle>ZERA</ApplicationTitle>
+    <ApplicationVersion>2</ApplicationVersion>
+    <ApplicationDisplayVersion>3.0.0-preview.2</ApplicationDisplayVersion>
+    <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidUseAssemblyStore>true</AndroidUseAssemblyStore>
+    <PublishTrimmed>false</PublishTrimmed>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
+    <!-- Standalone APKs embed optimized assemblies, including Debug builds. -->
+    <Optimize>true</Optimize>
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/..'))=/_/src</PathMap>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="zxing"><HintPath>Libraries/zxing.dll</HintPath></Reference>
+    <ProjectReference Include="../ZERA.Portable/ZERA.Portable.csproj" />
+    <AndroidLibrary Update="@(AndroidLibrary)" Bind="false" />
+    <AndroidAsset Include="Libraries/*.txt" Link="licenses/%(Filename)%(Extension)" />
+    <AndroidAsset Include="Libraries/LICENSE.*" Link="licenses/%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../LICENSE" Link="licenses/ZERA-GPL-3.0.txt" />
+    <AndroidJavaSource Include="Java/**/*.java" />
+  </ItemGroup>
+</Project>

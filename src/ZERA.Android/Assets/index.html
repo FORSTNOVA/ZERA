@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ZERA · 多网盘下载助手</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <div id="app" class="app-shell">
+        <!-- 顶部状态栏与标题 -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-logo" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" class="logo-svg">
+                        <polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="url(#brandGrad)" />
+                        <path d="M7 8 L17 8 L9 16 L17 16" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                        <defs>
+                            <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#3b6fe8" />
+                                <stop offset="100%" stop-color="#7c3aed" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">ZERA</span>
+                    <span class="brand-tag">移动工作区</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div id="active-account-pill" class="account-pill" role="button" tabindex="0" title="当前登录网盘">
+                    <span class="pill-dot"></span>
+                    <span id="header-account-name" class="pill-text">未登录</span>
+                </div>
+                <button id="btn-import-qr-image" class="icon-btn" aria-label="识别图片二维码" title="从图片识别二维码">
+                    <svg viewBox="0 0 24 24" class="svg-icon"><path d="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 7h3v3H7z M14 7h3v3h-3z M7 14h3v3H7z M14 14h3v3h-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button id="btn-import-share" class="icon-btn" aria-label="检测剪贴板或外部分享" title="读取剪贴板分享">
+                    <svg viewBox="0 0 24 24" class="svg-icon"><path d="M16 4 H18 A2 2 0 0 1 20 6 V20 A2 2 0 0 1 18 22 H6 A2 2 0 0 1 4 20 V6 A2 2 0 0 1 6 4 H8 M10 2 H14 A1 1 0 0 1 15 3 V5 A1 1 0 0 1 14 6 H10 A1 1 0 0 1 9 5 V3 A1 1 0 0 1 10 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+                <button id="btn-refresh-state" class="icon-btn" aria-label="刷新状态" title="刷新状态">
+                    <svg viewBox="0 0 24 24" class="svg-icon"><path d="M20 11 A8 8 0 1 1 17.7 5.6 M20 4 V10 H14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 外部浏览器提示（当未处于安卓客户端环境时展示） -->
+        <aside id="browser-fallback" class="fallback-banner hidden" role="alert">
+            <div class="fallback-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="svg-icon-large"><path d="M12 2 A10 10 0 1 0 22 12 A10 10 0 0 0 12 2 M12 8 V12 M12 16 H12.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div class="fallback-body">
+                <h3 class="fallback-title">请在安卓应用中打开</h3>
+                <p class="fallback-desc">当前为网页预览模式。下载引擎、文件存储权限与网盘认证通道需在手机端安装的 ZERA 应用内运行。请在应用中打开使用。</p>
+            </div>
+        </aside>
+
+        <!-- 主内容区域（包含4个选项卡） -->
+        <main class="app-main">
+            <!-- 选项卡 1: 下载 -->
+            <section id="tab-download" class="tab-pane active" role="tabpanel" aria-label="下载工作区">
+                <!-- 网盘平台选择滑块 -->
+                <div class="platform-bar-container">
+                    <div class="bar-label">选择网盘平台</div>
+                    <div id="platform-chips" class="platform-chips" role="radiogroup" aria-label="网盘平台">
+                        <!-- 动态渲染各平台胶囊 -->
+                    </div>
+                </div>
+
+                <!-- 模式切换分段控件 -->
+                <div class="mode-bar" role="tablist" aria-label="来源模式">
+                    <button id="mode-share" class="mode-btn active" role="tab" aria-selected="true" data-mode="share">分享解析</button>
+                    <button id="mode-drive" class="mode-btn" role="tab" aria-selected="false" data-mode="drive">我的网盘</button>
+                    <button id="mode-direct" class="mode-btn" role="tab" aria-selected="false" data-mode="direct">直链下载</button>
+                    <button id="mode-torrent" class="mode-btn" role="tab" aria-selected="false" data-mode="torrent">种子 / 磁力</button>
+                </div>
+
+                <!-- 免登录平台提示栏 (如蓝奏云) -->
+                <div id="anonymous-platform-banner" class="info-banner-sm hidden">
+                    <span class="banner-badge-primary">免登录</span>
+                    <span class="banner-text">当前所选平台无需账号即可直接解析与下载分享文件。</span>
+                </div>
+
+                <!-- 分享解析面板 -->
+                <div id="panel-share" class="sub-panel">
+                    <div class="card card-input">
+                        <label for="share-url-input" class="input-label">网盘分享链接</label>
+                        <div class="input-row">
+                            <textarea id="share-url-input" class="app-textarea" rows="2" placeholder="粘贴含提取码的分享链接，支持夸克、百度、蓝奏云等..."></textarea>
+                        </div>
+                        <div class="input-footer-row">
+                            <div class="passcode-field">
+                                <label for="share-pass-input" class="sub-label">提取码</label>
+                                <input type="text" id="share-pass-input" class="app-input pass-input" placeholder="自动识别 / 选填" maxlength="16">
+                            </div>
+                            <div class="action-buttons">
+                                <button id="btn-parse-share" class="btn btn-primary">
+                                    <svg viewBox="0 0 24 24" class="btn-icon"><path d="M10 13.5 A4 4 0 0 0 15.7 13.5 L18.5 10.7 A4 4 0 0 0 12.8 5 L11.4 6.4 M14 10.5 A4 4 0 0 0 8.3 10.5 L5.5 13.3 A4 4 0 0 0 11.2 19 L12.6 17.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                    <span>解析链接</span>
+                                </button>
+                                <button id="btn-clear-share" class="btn btn-ghost" title="清空输入">清空</button>
+                            </div>
+                        </div>
+                        <div id="speed-note" class="warning-banner hidden">
+                            <span class="banner-badge">限速提示</span>
+                            <span id="speed-note-text" class="banner-text">百度网盘限速由服务端令牌桶限制，非客户端原因。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 直链下载面板 -->
+                <div id="panel-direct" class="sub-panel hidden">
+                    <div class="card card-input">
+                        <label for="direct-url-input" class="input-label">HTTP(S) 直链地址</label>
+                        <textarea id="direct-url-input" class="app-textarea" rows="2" placeholder="输入合法的 HTTP / HTTPS 文件下载地址..."></textarea>
+                        <div class="input-field mt-8">
+                            <label for="direct-name-input" class="sub-label">自定义保存文件名（选填）</label>
+                            <input type="text" id="direct-name-input" class="app-input" placeholder="留空则自动从 URL 中解析文件名">
+                        </div>
+                        <button id="btn-add-direct" class="btn btn-primary btn-block mt-12">
+                            <svg viewBox="0 0 24 24" class="btn-icon"><path d="M12 3 V15 M6.5 9.5 L12 15 L17.5 9.5 M4 19 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            <span>添加直链任务</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 种子 / 磁力下载面板 -->
+                <div id="panel-torrent" class="sub-panel hidden">
+                    <div class="card card-input">
+                        <!-- 拆分下载选项 (1 / 2 / 4 / 8) -->
+                        <div class="split-setting-row mb-8">
+                            <span class="sub-label">拆分下载设置 (BT Split)：</span>
+                            <div id="torrent-split-pills" class="split-pills-wrap" role="radiogroup" aria-label="拆分任务数">
+                                <button class="split-pill-btn active" data-split="1">普通单任务</button>
+                                <button class="split-pill-btn" data-split="2">2 任务拆分</button>
+                                <button class="split-pill-btn" data-split="4">4 任务拆分</button>
+                                <button class="split-pill-btn" data-split="8">8 任务拆分</button>
+                            </div>
+                        </div>
+
+                        <label for="torrent-magnet-input" class="input-label">磁力链接 (Magnet URI)</label>
+                        <textarea id="torrent-magnet-input" class="app-textarea" rows="2" placeholder="粘贴 magnet:?xt=urn:btih:..."></textarea>
+
+                        <div class="torrent-actions-row mt-12">
+                            <button id="btn-add-magnet" class="btn btn-primary flex-1">
+                                <svg viewBox="0 0 24 24" class="btn-icon"><path d="M12 3 V15 M6.5 9.5 L12 15 L17.5 9.5 M4 19 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span>添加磁力任务</span>
+                            </button>
+                            <button id="btn-pick-torrent" class="btn btn-secondary">
+                                <svg viewBox="0 0 24 24" class="btn-icon"><path d="M6 3.5 H14 L18.5 8 V20.5 H6 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span>选择种子文件</span>
+                            </button>
+                        </div>
+
+                        <div class="torrent-footer-bar mt-12">
+                            <button id="btn-open-trackers" class="btn btn-ghost btn-sm">管理 Tracker 服务器与订阅 ›</button>
+                            <span class="helper-text">BT 限速普通/拆分各 256 KiB/s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 网盘与分享文件浏览列表 -->
+                <div id="panel-explorer" class="explorer-card card">
+                    <div class="explorer-toolbar">
+                        <div class="path-box">
+                            <svg viewBox="0 0 24 24" class="svg-icon-sm" aria-hidden="true"><path d="M3 6.5 A1.5 1.5 0 0 1 4.5 5 H9 L11 7.5 H19.5 A1.5 1.5 0 0 1 21 9 V18 A1.5 1.5 0 0 1 19.5 19.5 H4.5 A1.5 1.5 0 0 1 3 18 Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                            <span id="current-path-text" class="path-text">根目录</span>
+                        </div>
+                        <div class="toolbar-btns">
+                            <button id="btn-path-up" class="btn btn-secondary btn-icon-text btn-sm" title="返回上一级">
+                                <svg viewBox="0 0 24 24" class="svg-icon-xs"><path d="M12 19 V5 M6 11 L12 5 L18 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span>上级</span>
+                            </button>
+                            <button id="btn-refresh-files" class="btn btn-secondary btn-icon-text btn-sm" title="刷新文件列表">
+                                <svg viewBox="0 0 24 24" class="svg-icon-xs"><path d="M20 11 A8 8 0 1 1 17.7 5.6 M20 4 V10 H14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span>刷新</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 文件过滤搜索框 -->
+                    <div class="filter-box">
+                        <input type="text" id="file-filter-input" class="app-input search-input" placeholder="在当前目录筛选文件/文件夹...">
+                    </div>
+
+                    <!-- 文件列表滚动容器 -->
+                    <div class="file-list-wrap">
+                        <div id="file-loading" class="state-placeholder hidden">
+                            <div class="spinner"></div>
+                            <span>正在读取网盘目录...</span>
+                        </div>
+                        <div id="file-empty" class="state-placeholder">
+                            <svg viewBox="0 0 24 24" class="placeholder-icon"><path d="M10.94 5.27 A7 7 0 0 1 15.7 10 L17.5 10 A4.5 4.5 0 0 1 21.7 16 M18.8 18.8 A4.5 4.5 0 0 1 17.5 19 L9 19 A7 7 0 0 1 5.8 5.8 M2 2 L22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            <span class="placeholder-title">暂无文件展示</span>
+                            <span class="placeholder-subtitle">解析分享链接或登录网盘浏览文件（支持选中文件夹递归下载）</span>
+                        </div>
+                        <ul id="file-list" class="file-list" role="list">
+                            <!-- 动态渲染文件列表条目 -->
+                        </ul>
+                    </div>
+
+                    <!-- 底部批量操作栏 -->
+                    <div class="explorer-footer">
+                        <div class="selection-summary">
+                            <button id="btn-toggle-select-all" class="btn btn-ghost btn-sm">全选</button>
+                            <span id="selected-summary-text" class="summary-text">未选择文件</span>
+                        </div>
+                        <div class="batch-actions">
+                            <button id="btn-cloud-mkdir" class="btn btn-secondary btn-sm hidden" title="新建文件夹">新建目录</button>
+                            <button id="btn-cloud-transfer" class="btn btn-secondary btn-sm hidden" disabled>转存到夸克</button>
+                            <button id="btn-cloud-delete" class="btn btn-danger-ghost btn-sm hidden" disabled>删除选中</button>
+                            <button id="btn-export-links" class="btn btn-secondary btn-sm" disabled>导出直链</button>
+                            <button id="btn-download-selected" class="btn btn-primary btn-sm" disabled>
+                                <svg viewBox="0 0 24 24" class="btn-icon-xs"><path d="M12 3 V15 M6.5 9.5 L12 15 L17.5 9.5 M4 19 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span>下载选中</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 选项卡 2: 任务 -->
+            <section id="tab-tasks" class="tab-pane" role="tabpanel" aria-label="下载任务">
+                <div class="tasks-header card">
+                    <div class="tasks-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">下载总速</span>
+                            <span id="metric-total-speed" class="metric-value primary-color">0.0 KB/s</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">活跃任务</span>
+                            <span id="metric-active-count" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">总任务数</span>
+                            <span id="metric-total-count" class="metric-value">0</span>
+                        </div>
+                    </div>
+                    <div class="tasks-controls">
+                        <button id="btn-pause-all" class="btn btn-secondary btn-sm">全部暂停</button>
+                        <button id="btn-resume-all" class="btn btn-secondary btn-sm">全部继续</button>
+                        <button id="btn-clear-completed" class="btn btn-ghost btn-sm">清理已完成</button>
+                    </div>
+                </div>
+
+                <div class="tasks-list-container">
+                    <div id="tasks-empty" class="state-placeholder">
+                        <svg viewBox="0 0 24 24" class="placeholder-icon"><path d="M3 12 H7 L9.5 6 L14.5 18 L17 12 H21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        <span class="placeholder-title">暂无下载任务</span>
+                        <span class="placeholder-subtitle">在「下载」页添加分享文件、直链或磁力任务</span>
+                        <button id="btn-go-download" class="btn btn-secondary btn-sm mt-12">去添加下载</button>
+                    </div>
+                    <ul id="task-list" class="task-list" role="list">
+                        <!-- 动态渲染任务卡片 (含网盘下载与 BT 任务) -->
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 选项卡 3: 账号 -->
+            <section id="tab-accounts" class="tab-pane" role="tabpanel" aria-label="账号管理">
+                <!-- 当前账号状态 -->
+                <div class="card card-account-status">
+                    <div class="account-profile-row">
+                        <div id="account-avatar" class="account-avatar">?</div>
+                        <div class="account-info">
+                            <div class="account-title-row">
+                                <h3 id="account-name-text" class="account-name">未登录</h3>
+                                <span id="account-platform-tag" class="platform-badge">夸克网盘</span>
+                            </div>
+                            <p id="account-hint-text" class="account-sub">登录后可浏览「我的网盘」与转存文件</p>
+                        </div>
+                        <div class="account-actions-group">
+                            <button id="btn-account-capacity" class="btn btn-secondary btn-sm hidden">容量查询</button>
+                            <button id="btn-query-membership" class="btn btn-secondary btn-sm hidden">会员/流量查询</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 已保存的账号列表 -->
+                <div class="card">
+                    <div class="card-header-row">
+                        <h4 class="card-title">已保存的网盘账号</h4>
+                        <span id="accounts-count" class="badge-count">0</span>
+                    </div>
+                    <ul id="saved-accounts-list" class="accounts-list">
+                        <li class="empty-hint">暂无已保存的网盘账号</li>
+                    </ul>
+                </div>
+
+                <!-- 登录或添加授权面板 -->
+                <div class="card">
+                    <div class="card-header-row">
+                        <h4 class="card-title">添加 / 登录网盘账号</h4>
+                        <div id="login-mode-bar" class="login-mode-pills" role="tablist">
+                            <button id="login-tab-qr" class="pill-btn active" role="tab" data-mode="qr">扫码登录</button>
+                            <button id="login-tab-pass" class="pill-btn" role="tab" data-mode="password">密码登录</button>
+                            <button id="login-tab-cookie" class="pill-btn" role="tab" data-mode="cookie">Cookie</button>
+                            <button id="login-tab-webdav" class="pill-btn" role="tab" data-mode="webdav">WebDAV</button>
+                            <button id="login-tab-json" class="pill-btn" role="tab" data-mode="json">高级 JSON</button>
+                        </div>
+                    </div>
+
+                    <!-- 免登录网盘专用提示看板 (如蓝奏云选中时) -->
+                    <div id="login-anonymous-notice" class="login-sub-panel hidden">
+                        <div class="state-placeholder" style="padding: 16px;">
+                            <svg viewBox="0 0 24 24" class="svg-icon-large" style="color: var(--primary);"><path d="M5 12.5 L10 17.5 L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                            <span class="placeholder-title" style="margin-top: 6px;">该平台无需账号登录</span>
+                            <span class="placeholder-subtitle">蓝奏云等免登录平台支持直接解析与下载分享文件。可在「下载」页直接使用。</span>
+                        </div>
+                    </div>
+
+                    <!-- 扫码登录子容器 (支持 Waiting, Scanned, Captcha, SmsRequired, SmsSent, Verification) -->
+                    <div id="login-panel-qr" class="login-sub-panel">
+                        <p id="qr-guide-text" class="section-desc">用手机端网盘 App 扫描二维码并在手机上授权登录</p>
+                        <div class="qr-display-box">
+                            <div id="qr-img-wrap" class="qr-img-wrap hidden">
+                                <img id="qr-img" class="qr-img" alt="登录二维码" />
+                            </div>
+                            <div id="qr-placeholder" class="qr-placeholder">
+                                <svg viewBox="0 0 24 24" class="svg-icon-large"><path d="M4 4 H10 V10 H4 Z M14 4 H20 V10 H14 Z M4 14 H10 V20 H4 Z M14 14 H16 V16 H14 Z M18 14 H20 V16 H18 Z M14 18 H16 V20 H14 Z M18 18 H20 V20 H18 Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                                <span>点击下方按钮获取登录二维码</span>
+                            </div>
+                        </div>
+
+                        <!-- 扫码与二步验证状态提示条 -->
+                        <div id="qr-status-bar" class="qr-status-bar hidden">
+                            <span class="status-indicator"></span>
+                            <span id="qr-status-msg" class="status-msg">等待扫码确认...</span>
+                        </div>
+
+                        <!-- 验证码 / 短信 / 网页验证挑战区 (Captcha / SmsRequired / Verification) -->
+                        <div id="qr-challenge-section" class="card card-sunken mt-12 hidden">
+                            <label id="qr-challenge-label" class="input-label">安全验证</label>
+                            <div class="input-row">
+                                <input type="text" id="qr-challenge-input" class="app-input flex-1" placeholder="输入短信或图像验证码">
+                                <button id="btn-qr-submit-challenge" class="btn btn-primary btn-sm ml-8">提交验证</button>
+                                <button id="btn-qr-resend-sms" class="btn btn-secondary btn-sm ml-8 hidden">重发短信</button>
+                            </div>
+                            <div id="qr-verification-link-row" class="mt-8 hidden">
+                                <a id="qr-verification-link" class="btn btn-secondary btn-sm btn-block" href="#" target="_blank" rel="noopener noreferrer">在浏览器中打开验证页面 ›</a>
+                            </div>
+                        </div>
+
+                        <div class="qr-btn-group mt-12">
+                            <button id="btn-start-qr" class="btn btn-primary flex-1">获取二维码</button>
+                            <button id="btn-cancel-qr" class="btn btn-ghost hidden">取消登录</button>
+                        </div>
+                    </div>
+
+                    <!-- 密码登录子容器 -->
+                    <div id="login-panel-pass" class="login-sub-panel hidden">
+                        <p class="section-desc">适用于原生支持账号密码接入的云盘平台（如天翼、移动、123云盘）</p>
+                        <div class="form-group">
+                            <label for="pass-username" class="input-label">账号 / 手机号</label>
+                            <input type="text" id="pass-username" class="app-input" placeholder="输入云盘账号或绑定手机号">
+                        </div>
+                        <div class="form-group mt-8">
+                            <label for="pass-password" class="input-label">登录密码</label>
+                            <input type="password" id="pass-password" class="app-input" placeholder="密码仅用于本次登录，不会保存">
+                        </div>
+                        <div id="challenge-box" class="form-group mt-8 hidden">
+                            <label for="pass-challenge" class="input-label">验证码 / 短信校验</label>
+                            <div class="input-row">
+                                <input type="text" id="pass-challenge" class="app-input flex-1" placeholder="输入收到的验证码">
+                                <button id="btn-send-sms" class="btn btn-secondary btn-sm ml-8">获取短信</button>
+                            </div>
+                        </div>
+                        <button id="btn-submit-pass" class="btn btn-primary btn-block mt-12">登录并保存</button>
+                    </div>
+
+                    <!-- Cookie 导入子容器 -->
+                    <div id="login-panel-cookie" class="login-sub-panel hidden">
+                        <p class="section-desc">从浏览器开发者工具复制完整 Cookie 导入（夸克/百度网盘备用通道）</p>
+                        <div class="form-group">
+                            <label for="cookie-text" class="input-label">Cookie 原始串</label>
+                            <textarea id="cookie-text" class="app-textarea" rows="4" placeholder="粘贴含 BDUSS 或夸克专属 Cookie..."></textarea>
+                        </div>
+                        <div class="form-group mt-8">
+                            <label for="cookie-alias" class="input-label">账号备注名（选填）</label>
+                            <input type="text" id="cookie-alias" class="app-input" placeholder="例如：我的主账号">
+                        </div>
+                        <button id="btn-submit-cookie" class="btn btn-primary btn-block mt-12">导入并校验登录</button>
+                    </div>
+
+                    <!-- WebDAV 结构化配置子容器 -->
+                    <div id="login-panel-webdav" class="login-sub-panel hidden">
+                        <p class="section-desc">连接坚果云、群晖、AList 或自建 WebDAV 服务器</p>
+                        <div class="form-group">
+                            <label for="webdav-name" class="input-label">连接备注名称</label>
+                            <input type="text" id="webdav-name" class="app-input" placeholder="例如：坚果云个人盘">
+                        </div>
+                        <div class="form-group mt-8">
+                            <label for="webdav-endpoint" class="input-label">WebDAV 地址 (Endpoint)</label>
+                            <input type="url" id="webdav-endpoint" class="app-input" placeholder="https://dav.jianguoyun.com/dav/">
+                        </div>
+                        <div class="form-group mt-8">
+                            <label for="webdav-user" class="input-label">用户名 / 邮箱</label>
+                            <input type="text" id="webdav-user" class="app-input" placeholder="WebDAV 授权账号">
+                        </div>
+                        <div class="form-group mt-8">
+                            <label for="webdav-pass" class="input-label">密码 / 应用独立密码</label>
+                            <input type="password" id="webdav-pass" class="app-input" placeholder="WebDAV 应用授权密码">
+                        </div>
+                        <div class="form-group mt-8">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="webdav-allow-http">
+                                <span>允许非安全 HTTP 连接（局域网 NAS）</span>
+                            </label>
+                        </div>
+                        <button id="btn-submit-webdav" class="btn btn-primary btn-block mt-12">连接并保存 WebDAV</button>
+                    </div>
+
+                    <!-- 高级 JSON 凭据子容器 -->
+                    <div id="login-panel-json" class="login-sub-panel hidden">
+                        <p class="section-desc">导入已获得的网盘授权资料。下方提供当前平台所需的字段示例。</p>
+                        <div class="form-group">
+                            <label for="json-credential-input" class="input-label">JSON 凭据数据</label>
+                            <textarea id="json-credential-input" class="app-textarea code-font" rows="5" placeholder="{ &quot;token&quot;: &quot;...&quot; }"></textarea>
+                        </div>
+                        <div class="form-group mt-8">
+                            <label for="json-account-name" class="input-label">账号名称</label>
+                            <input type="text" id="json-account-name" class="app-input" placeholder="自定义标识名称">
+                        </div>
+                        <button id="btn-submit-json" class="btn btn-primary btn-block mt-12">解析并保存高级凭据</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 选项卡 4: 设置 -->
+            <section id="tab-settings" class="tab-pane" role="tabpanel" aria-label="应用设置">
+                <!-- 外观主题 -->
+                <div class="card">
+                    <h4 class="card-title">外观模式</h4>
+                    <p class="section-desc">选择契合视觉的沉浸浅色或深空夜间主题</p>
+                    <div class="theme-selector-grid mt-12" role="radiogroup" aria-label="主题选择">
+                        <button class="theme-choice-btn active" data-theme="system">
+                            <span class="theme-icon">◐</span>
+                            <span class="theme-name">跟随系统</span>
+                        </button>
+                        <button class="theme-choice-btn" data-theme="light">
+                            <span class="theme-icon">☼</span>
+                            <span class="theme-name">清爽浅色</span>
+                        </button>
+                        <button class="theme-choice-btn" data-theme="dark">
+                            <span class="theme-icon">☾</span>
+                            <span class="theme-name">深空暗色</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 下载与写入配置 -->
+                <div class="card">
+                    <h4 class="card-title">下载并发与存储模式</h4>
+                    <div class="setting-item mt-12">
+                        <div class="setting-text">
+                            <label for="setting-threads" class="setting-title">单任务并发连接数</label>
+                            <span class="setting-desc">建议从 8 线程开始；实际并发受账号权益和平台限制。</span>
+                        </div>
+                        <select id="setting-threads" class="app-select">
+                            <option value="1">1 线程</option>
+                            <option value="2">2 线程</option>
+                            <option value="4">4 线程</option>
+                            <option value="8" selected>8 线程 (推荐)</option>
+                            <option value="16">16 线程 (平稳)</option>
+                            <option value="32">32 线程</option>
+                            <option value="64">64 线程</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item mt-12">
+                        <div class="setting-text">
+                            <label for="setting-concurrent" class="setting-title">同时下载任务数</label>
+                            <span class="setting-desc">队列中同时执行下载的最大文件个数。</span>
+                        </div>
+                        <select id="setting-concurrent" class="app-select">
+                            <option value="1">1 个 (顺序下载)</option>
+                            <option value="2" selected>2 个 (推荐)</option>
+                            <option value="3">3 个</option>
+                            <option value="4">4 个</option>
+                            <option value="5">5 个</option>
+                            <option value="8">8 个</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item-block mt-12">
+                        <div class="setting-text mb-8">
+                            <span class="setting-title">文件分片写入模式</span>
+                            <span class="setting-desc">共写同一文件省存储空间；独立分片支持边下边播媒体文件。</span>
+                        </div>
+                        <div class="write-mode-grid" role="radiogroup" aria-label="写入模式">
+                            <label class="radio-card">
+                                <input type="radio" name="writeMode" value="SharedFile" checked>
+                                <div class="radio-card-content">
+                                    <div class="radio-card-title">共写同一文件 <span class="tag-pill">推荐</span></div>
+                                    <div class="radio-card-desc">边下边写同一目标文件，零多余空间占用。</div>
+                                </div>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="writeMode" value="SegmentedFiles">
+                                <div class="radio-card-content">
+                                    <div class="radio-card-title">独立分片 + 边合并</div>
+                                    <div class="radio-card-desc">按序拼接分块，临时占用双倍空间但可在完成前流式预览。</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button id="btn-save-settings" class="btn btn-primary btn-block mt-16">保存设置参数</button>
+                </div>
+
+                <!-- 公共存储与悬浮窗导出 -->
+                <div class="card">
+                    <h4 class="card-title">公共目录与导出</h4>
+                    <p class="section-desc">下载先保存在应用目录，完成后可自动或手动导出。公共副本在卸载后仍会保留，重复导出会创建新目录。</p>
+
+                    <div class="setting-item mt-12">
+                        <div class="setting-text">
+                            <span class="setting-title">公共导出目录</span>
+                            <span id="export-folder-name" class="setting-desc">未选择（仅保存在应用私有存储）</span>
+                        </div>
+                        <div class="setting-action-btns">
+                            <button id="btn-pick-export-folder" class="btn btn-secondary btn-sm">选择目录</button>
+                            <button id="btn-clear-export-folder" class="btn btn-ghost btn-sm hidden">清除</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-item mt-12">
+                        <div class="setting-text">
+                            <label for="setting-auto-export" class="setting-title">任务完成后自动导出到公共目录</label>
+                            <span class="setting-desc">任务完成时自动在后台复制至所选公共目录</span>
+                        </div>
+                        <input type="checkbox" id="setting-auto-export" class="app-checkbox">
+                    </div>
+
+                    <div class="setting-item mt-12">
+                        <div class="setting-text">
+                            <label for="setting-floating-window" class="setting-title">桌面下载悬浮窗</label>
+                            <span class="setting-desc">在其他应用上层显示迷你下载进度与控制栏，需开启系统悬浮窗权限</span>
+                        </div>
+                        <input type="checkbox" id="setting-floating-window" class="app-checkbox">
+                    </div>
+                </div>
+
+                <!-- 运行环境与日志 -->
+                <div class="card">
+                    <div class="card-header-row">
+                        <h4 class="card-title">运行日志与诊断</h4>
+                        <button id="btn-clear-logs" class="btn btn-ghost btn-sm">清空</button>
+                    </div>
+                    <div class="log-console-wrap mt-8">
+                        <pre id="log-console" class="log-console" aria-label="系统运行日志">系统准备就绪...</pre>
+                    </div>
+                    <div class="runtime-meta mt-8">
+                        <span id="runtime-dir-text" class="meta-item">存储路径: 加载中...</span>
+                        <span class="meta-item">卸载应用会删除本地下载；重要文件请在完成后导出。</span>
+                        <span id="runtime-ver-text" class="meta-item">版本: 3.0.0</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部主导航栏 -->
+        <nav class="app-nav" role="navigation" aria-label="主功能导航">
+            <button class="nav-item active" data-target="tab-download" aria-label="下载">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M12 3 V15 M6.5 9.5 L12 15 L17.5 9.5 M4 19 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span class="nav-label">下载</span>
+            </button>
+            <button class="nav-item" data-target="tab-tasks" aria-label="任务">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M3 12 H7 L9.5 6 L14.5 18 L17 12 H21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span class="nav-label">任务</span>
+                <span id="nav-task-badge" class="nav-badge hidden">0</span>
+            </button>
+            <button class="nav-item" data-target="tab-accounts" aria-label="账号">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M12 4 A4 4 0 1 1 12 12 A4 4 0 1 1 12 4 M4.5 20.5 C4.5 16.9 7.9 14 12 14 C16.1 14 19.5 16.9 19.5 20.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span class="nav-label">账号</span>
+            </button>
+            <button class="nav-item" data-target="tab-settings" aria-label="设置">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M12 8.5 A3.5 3.5 0 1 1 12 15.5 A3.5 3.5 0 1 1 12 8.5 M19.4 15 L19.8 16.9 A2 2 0 0 1 17 19.7 L15.1 19.3 A1.6 1.6 0 0 0 14.2 20.7 V21 A2 2 0 0 1 10.2 21 V20.9 A1.6 1.6 0 0 0 9.2 19.5 L7.3 19.9 A2 2 0 0 1 4.5 17.1 L4.9 15.2 A1.6 1.6 0 0 0 3.5 14.3 H3.2 A2 2 0 0 1 3.2 10.3 H3.3 A1.6 1.6 0 0 0 4.7 9.3 L4.3 7.4 A2 2 0 0 1 7.1 4.6 L9 5 A1.6 1.6 0 0 0 9.9 3.6 V3.3 A2 2 0 0 1 13.9 3.3 V3.4 A1.6 1.6 0 0 0 14.8 4.8 L16.7 4.4 A2 2 0 0 1 19.5 7.2 L19.1 9.1 A1.6 1.6 0 0 0 20.5 10 H20.8 A2 2 0 0 1 20.8 14 Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                <span class="nav-label">设置</span>
+            </button>
+        </nav>
+
+        <!-- 弹窗 / 模态卡片容器 -->
+        <div id="modal-container" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3 id="modal-title" class="modal-title">弹窗提示</h3>
+                    <button id="btn-modal-close" class="modal-close" aria-label="关闭">✕</button>
+                </div>
+                <div id="modal-content" class="modal-content">
+                    <!-- 动态插入内容 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 浮动操作反馈 Toast -->
+        <div id="toast" class="toast hidden" role="status" aria-live="polite">操作完成</div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
