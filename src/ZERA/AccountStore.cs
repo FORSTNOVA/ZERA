@@ -130,7 +130,8 @@ namespace ZERA
                     p.Key = key;
                     if (!string.IsNullOrEmpty(nick))
                         p.Nick = nick;
-                    p.Cookie = string.Equals(panel ?? p.Panel, "WebDav", StringComparison.OrdinalIgnoreCase)
+                    p.Cookie = string.Equals(panel ?? p.Panel, "WebDav", StringComparison.OrdinalIgnoreCase) ||
+                        Enum.TryParse<PanelKind>(panel ?? p.Panel, true, out var kind) && NativeCloudAccount.Supports(kind)
                         ? SecretProtector.ProtectRequired(cookie ?? "") : SecretProtector.Protect(cookie ?? "");
                     if (!string.IsNullOrEmpty(panel))
                         p.Panel = panel;

@@ -210,7 +210,7 @@ internal static class Program
             Check(Task.Run(() => refresh(CancellationToken.None)).GetAwaiter().GetResult() == "https://fixture.example/verified-file" && shareHandler.Calls > 0, "Background source link refresh survives platform/context switch");
             var clients = (System.Collections.IDictionary)typeof(MainWindow).GetField("_panelClients", flags).GetValue(main);
             Check(ReferenceEquals(clients[PanelKind.Quark], sourceClient) && ReferenceEquals(clients[PanelKind.Baidu], destinationClient), "Cross-platform commit retains source task client");
-            Check(settings.Panel == PanelKind.Baidu && settings.CurrentAccountKey == "bd_test" && ((RadioButton)main.FindName("BaiduPanelRadio")).IsChecked == true, "Validated commit updates platform, UI and remembered key");
+            Check(settings.Panel == PanelKind.Baidu && settings.CurrentAccountKey == "bd_test" && Equals(((ComboBox)main.FindName("DownloadPanelBox")).SelectedValue, PanelKind.Baidu), "Validated commit updates platform, UI and remembered key");
             var removeAccount = typeof(MainWindow).GetMethod("RemoveRememberedAccount", flags);
             Check(!(bool)removeAccount.Invoke(main, new object[] { AccountStore.Get("quark") }), "Cannot delete source account while its tasks exist");
             tasks.Clear();
@@ -260,9 +260,10 @@ internal static class Program
             {
                 string credential = new WebDavAccount { Endpoint = dav.Root, Username = "user", Password = "SECRET-PASS", Name = "本机 WebDAV", AllowHttp = true }.Serialize();
                 var profile = new AccountProfile { Panel = "WebDav", Cookie = credential };
+                using (var preflight = new WebDavClient(credential)) Check(Pump(preflight.ValidateAsync()).ok, "WebDAV transport preflight");
                 Check(Pump((Task<bool>)switchAccount.Invoke(main, new object[] { profile })), "Complete unified WebDAV login through real local PROPFIND");
                 var activeDav = (IPanelClient)clientField.GetValue(main);
-                Check(activeDav.Kind == PanelKind.WebDav && settings.Panel == PanelKind.WebDav && ((RadioButton)main.FindName("WebDavPanelRadio")).IsChecked == true, "WebDAV platform committed");
+                Check(activeDav.Kind == PanelKind.WebDav && settings.Panel == PanelKind.WebDav && Equals(((ComboBox)main.FindName("DownloadPanelBox")).SelectedValue, PanelKind.WebDav), "WebDAV platform committed");
                 var directoryTask = (Task)typeof(MainWindow).GetMethod("LoadDirAsync", flags).Invoke(main, new object[] { "0" });
                 Pump(directoryTask.ContinueWith(t => { t.GetAwaiter().GetResult(); return true; }));
                 var davFiles = (System.Collections.IList)typeof(MainWindow).GetField("_files", flags).GetValue(main);
@@ -298,6 +299,24 @@ internal static class Program
                 }
             }
             Console.WriteLine("PASS: complete WebDAV UI login, capability gating, encrypted persistence, failed-password preservation and removal");
+            foreach (var kind in Enum.GetValues(typeof(PanelKind)).Cast<PanelKind>().Where(NativeCloudAccount.Supports))
+            {
+                var credential = new NativeCloudAccount { AccessToken = "NATIVE-SECRET", Authorization = "AUTH-SECRET", Identity = "identity-" + kind }.Serialize();
+                string key = PanelAdapter.CredentialFingerprint(kind, credential);
+                AccountStore.Save(key, "native", credential, kind.ToString());
+                var profile = AccountStore.Get(key);
+                Check(profile != null && profile.Cookie == credential && (bool)typeof(MainWindow).GetMethod("AccountPanel", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { profile, PanelKind.Quark }), "Native profile platform recognized: " + kind);
+                Check(!File.ReadAllText(Path.Combine(AccountStore.AccountsDir, AccountStore.SafeKey(key) + ".xml")).Contains("NATIVE-SECRET"), "Native profile uses DPAPI: " + kind);
+                settings.Panel = kind; settings.SetPanelCookie(kind, credential); settings.RememberAccount(key); SettingsStore.Save(settings);
+                var reloaded = SettingsStore.Load();
+                Check(reloaded.Panel == kind && reloaded.GetAccountKey(kind) == key && reloaded.GetPanelCookie(kind) == credential && !File.ReadAllText(SettingsStore.FilePath).Contains("NATIVE-SECRET"), "Native settings and account key encrypted across restart: " + kind);
+                using (var native = new NativeCloudClient(kind, credential))
+                {
+                    activate.Invoke(main, new object[] { native });
+                    Check(Equals(((ComboBox)main.FindName("DownloadPanelBox")).SelectedValue, kind) && ((Button)main.FindName("NativeConfigureButton")).Visibility == Visibility.Visible, "Native account activation updates UI: " + kind);
+                }
+            }
+            Console.WriteLine("PASS: six native platform profile recognition, encrypted settings/profiles, restart and UI activation");
             Environment.Exit(0);
             return 0;
         }

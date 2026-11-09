@@ -387,10 +387,10 @@ namespace ZERA
             var tmpPath = FilePath + ".tmp";
             try
             {
-                s.Cookie = s.Panel == PanelKind.WebDav ? SecretProtector.ProtectRequired(rawCookie) : SecretProtector.Protect(rawCookie);
+                s.Cookie = s.Panel == PanelKind.WebDav || NativeCloudAccount.Supports(s.Panel) ? SecretProtector.ProtectRequired(rawCookie) : SecretProtector.Protect(rawCookie);
                 if (s.PanelCookies != null)
                     foreach (var entry in s.PanelCookies)
-                        entry.Cookie = entry.Panel == PanelKind.WebDav ? SecretProtector.ProtectRequired(entry.Cookie) : SecretProtector.Protect(entry.Cookie);
+                        entry.Cookie = entry.Panel == PanelKind.WebDav || NativeCloudAccount.Supports(entry.Panel) ? SecretProtector.ProtectRequired(entry.Cookie) : SecretProtector.Protect(entry.Cookie);
 
                 // 先写临时文件再原子替换：避免写一半断电/异常留下半截 XML，
                 // 下次启动 Load 直接抛异常、用户设置全丢。

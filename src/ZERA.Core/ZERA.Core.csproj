@@ -8,7 +8,7 @@
     <RootNamespace>ZERA.Core</RootNamespace>
     <Product>ZERA</Product>
     <AssemblyTitle>ZERA</AssemblyTitle>
-    <Version>2.10.0</Version>
+    <Version>2.13.0</Version>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- 【2026-10-04】PathMap：别让编译机的绝对路径（含用户名）进产物。
          不加 → `C:\Users\<用户名>\Desktop\ZERA\src\...\ZERA.Core.pdb` 被写进 dll
@@ -21,6 +21,7 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Web" />
     <!-- DPAPI（ProtectedData）加密 Cookie -->
     <Reference Include="System.Security" />
   </ItemGroup>

@@ -213,6 +213,7 @@ namespace ZERA
                 return c;
 
             c = PanelRegistry.Create(kind, PanelCookie(kind));
+            WatchNativeCredentials(c, _settings.GetAccountKey(kind), null);
             _panelClients[kind] = c;
 
             // 当前选中的平台顺手同步一份引用，省掉后续的类型强转
@@ -317,6 +318,10 @@ namespace ZERA
         public MainWindow()
         {
             InitializeComponent();
+            _suppressPanelChanged = true;
+            DownloadPanelBox.ItemsSource = PanelRegistry.All().ToList();
+            AccountPanelBox.ItemsSource = PanelRegistry.All().ToList();
+            _suppressPanelChanged = false;
             FileList.ItemsSource = _files;
             // 当前目录的筛选视图（名称包含关键字才显示）。空关键字 = 全部显示。
             _filesView = System.Windows.Data.CollectionViewSource.GetDefaultView(_files);
@@ -509,9 +514,7 @@ namespace ZERA
             _suppressPanelChanged = true;
             try
             {
-                if (_panel == PanelKind.WebDav) WebDavPanelRadio.IsChecked = true;
-                else if (_panel == PanelKind.Baidu) BaiduPanelRadio.IsChecked = true;
-                else QuarkPanelRadio.IsChecked = true;
+                DownloadPanelBox.SelectedValue = _panel;
             }
             finally { _suppressPanelChanged = false; }
             UpdatePanelDependentUi();
@@ -1029,14 +1032,14 @@ namespace ZERA
         /// 那两个快照是同一平台内「分享 ↔ 网盘」的切换，可以恢复；
         /// 跨平台恢复则是拿甲平台的目录去请求乙平台，后果是错数据而不是报错。</para>
         /// </summary>
-        private async void OnPanelChanged(object sender, RoutedEventArgs e)
+        private async void OnPanelChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (QuarkPanelRadio == null || BaiduPanelRadio == null)
+            if (DownloadPanelBox == null || !(DownloadPanelBox.SelectedValue is PanelKind))
                 return;   // 构造期，控件还没就位
             if (_suppressPanelChanged)
                 return;   // 启动时程序性赋值，不是用户操作
 
-            var want = WebDavPanelRadio.IsChecked == true ? PanelKind.WebDav : BaiduPanelRadio.IsChecked == true ? PanelKind.Baidu : PanelKind.Quark;
+            var want = (PanelKind)DownloadPanelBox.SelectedValue;
             if (want == _panel)
                 return;
 
@@ -1136,9 +1139,11 @@ namespace ZERA
             var capabilities = PanelRegistry.Describe(_panel);
             BaiduMembershipButton.Visibility = capabilities?.SupportsMembershipQuery == true ? Visibility.Visible : Visibility.Collapsed;
             ShareModeRadio.IsEnabled = capabilities?.SupportsShare == true;
+            DriveModeRadio.IsEnabled = capabilities?.SupportsDrive == true;
             if (capabilities?.SupportsShare != true) DriveModeRadio.IsChecked = true;
+            if (capabilities?.SupportsDrive != true) ShareModeRadio.IsChecked = true;
             CookieImportCard.Visibility = _panel == PanelKind.Quark ? Visibility.Visible : Visibility.Collapsed;
-            if (capabilities?.SupportsQrLogin != true) QrCard.Visibility = Visibility.Collapsed;
+            if (capabilities?.SupportsQrLogin != true || NativeCloudAccount.Supports(_panel)) QrCard.Visibility = Visibility.Collapsed;
 
             // 扫码登录 —— 夸克与百度现在都支持（百度走 passport 三段式，2026-10-14 实测打通）。
             // 顶栏那个「扫一扫」是扫分享链接用的，仍只夸克平台开放。
@@ -1147,7 +1152,7 @@ namespace ZERA
             // 登录页：两个平台都显示扫码卡（左列）—— 夸克本地画码，百度显示百度下发的 PNG。
             // 收起旧二维码：切平台后还挂着上一个平台的码，用户扫了也是登错账号。
             HideQrImage();
-            if (QrCard != null) QrCard.Visibility = capabilities?.SupportsQrLogin == true ? Visibility.Visible : Visibility.Collapsed;
+            if (QrCard != null) QrCard.Visibility = capabilities?.SupportsQrLogin == true && !NativeCloudAccount.Supports(_panel) ? Visibility.Visible : Visibility.Collapsed;
             if (QrHintText != null)
             {
                 QrHintText.Text = quark
@@ -1160,7 +1165,7 @@ namespace ZERA
             if (BaiduCookieCard != null) BaiduCookieCard.Visibility = _panel == PanelKind.Baidu ? Visibility.Visible : Visibility.Collapsed;
             if (LoginPageTitle != null)
             {
-                LoginPageTitle.Text = _panel == PanelKind.WebDav ? "添加 WebDAV 连接，或切换到已记住的服务器账号" : quark
+                LoginPageTitle.Text = _panel == PanelKind.Lanzou ? "蓝奏云分享下载无需登录。返回下载页，粘贴分享链接及提取码后点击解析。暂不支持蓝奏优享。" : NativeCloudAccount.Supports(_panel) ? "原生接入 · " + NativeCloudAccount.Guide(_panel) + " 支持方式以当前登录按钮为准；暂不解析分享链接。" : _panel == PanelKind.WebDav ? "添加 WebDAV 连接，或切换到已记住的服务器账号" : quark
                     ? "登录后可浏览「我的网盘」、转存分享文件；不登录也能用直链下载"
                     : "扫码登录百度账号后可浏览「我的网盘」；也可在「Cookie / 会员查询」中导入 Cookie";
             }
@@ -1427,7 +1432,7 @@ namespace ZERA
                     // 退路：按解析出的 PwdId 重建（应对"只有纯文本、URL 被截断"等情况）
                     var info = ShareUrlParser.Parse(text);
                     if (!string.IsNullOrEmpty(info.PwdId))
-                        url = "https://pan.quark.cn/s/" + info.PwdId;
+                        url = PanelRegistry.Detect(text) == PanelKind.Lanzou ? info.PwdId : "https://pan.quark.cn/s/" + info.PwdId;
                 }
 
                 if (string.IsNullOrEmpty(url))
@@ -1438,7 +1443,9 @@ namespace ZERA
 
                 // 文案里带提取码时顺手填上（用户看得见"用了什么码"，解析失败时好排查）
                 var info2 = ShareUrlParser.Parse(text);
-                if (!string.IsNullOrEmpty(info2.Passcode) && string.IsNullOrEmpty(PassBox.Text.Trim()))
+                if (PanelRegistry.Detect(text) == PanelKind.Lanzou)
+                    PassBox.Text = info2.Passcode ?? "";
+                else if (!string.IsNullOrEmpty(info2.Passcode) && string.IsNullOrEmpty(PassBox.Text.Trim()))
                     PassBox.Text = info2.Passcode;
             }
             catch { /* 粘贴绝不因为这里出错而失败 */ }
@@ -1446,6 +1453,8 @@ namespace ZERA
 
         private async void OnParseClick(object sender, RoutedEventArgs e)
         {
+            if (PanelRegistry.Detect(LinkBox.Text) == PanelKind.Lanzou && _panel != PanelKind.Lanzou)
+                DownloadPanelBox.SelectedValue = PanelKind.Lanzou;
             if (PanelRegistry.Describe(_panel)?.SupportsShare != true)
             { Log("此平台使用目录浏览，不支持分享链接解析。"); return; }
             string url = LinkBox.Text.Trim();
@@ -2567,7 +2576,7 @@ namespace ZERA
                     PartsRoot = string.IsNullOrWhiteSpace(_settings.PartsRoot) ? null : _settings.PartsRoot,
                     LinkRefresher = CreateLinkRefresher(item),
                     // 免转存（从分享直接取链）→ 续传取不到新链，失败文案别承诺"可续传"
-                    ResumeCannotRefresh = item.FromShare,
+                    ResumeCannotRefresh = item.FromShare && item.Panel != PanelKind.Lanzou,
                     Pending = new PendingInfo
                     {
                         // 【2026-10-14 多平台】记录来源平台 ——
@@ -2709,7 +2718,7 @@ namespace ZERA
                         // 给下载器一个"重新取链"的口子，它就能自动换链续传，而不是整个任务失败。
                         LinkRefresher = CreateLinkRefresher(item),
                         // 免转存（从分享直接取链）→ 续传取不到新链，失败文案别承诺"可续传"
-                        ResumeCannotRefresh = item.FromShare,
+                        ResumeCannotRefresh = item.FromShare && item.Panel != PanelKind.Lanzou,
                         // 续传上下文：写进「未完成任务」记录后，程序重启也能重取链接着下。
                         Pending = new PendingInfo
                         {
@@ -2793,6 +2802,7 @@ namespace ZERA
         private async Task<List<DownloadItem>> GetDownloadItemsAsync(List<ShareFileItem> files,
             bool forceNoSave = false)
         {
+            if (_panel == PanelKind.Lanzou) return await NoSaveGetItemsAsync(files);
             // 【2026-10-14 晚】百度没有「转存」链路（ZERA 未实现百度分享转存），
             // 分享与网盘统一走 DriveGetItemsAsync：分享文件由 ResolveDriveFileAsync
             // 的分享分支（sharedownload + 分享页上下文）取链，网盘文件走
@@ -3279,6 +3289,7 @@ namespace ZERA
                 if (profile == null || string.IsNullOrEmpty(profile.Cookie) || !AccountPanel(profile, out var kind) || kind != panel)
                     throw new InvalidOperationException("任务原账号的登录信息不可用，请先重新登录该账号再继续。");
                 var client = PanelRegistry.Create(panel, profile.Cookie);
+                WatchNativeCredentials(client, key, profile.Nick);
                 _accountClients[composite] = client;
                 return client;
             }
@@ -3321,20 +3332,23 @@ namespace ZERA
         /// Cookie 会话，服务端才认。账号客户端取不到（档案被删等）时退回平台
         /// 默认客户端 —— 至少还有一次机会，而不是整个任务崩掉。</para>
         /// </summary>
-        private DownloadRequestContext BuildContextFor(PanelKind panel, string accountKey)
-            => GetAccountClient(panel, accountKey).BuildDownloadContext();
+        private DownloadRequestContext BuildContextFor(PanelKind panel, string accountKey, string fileId = null)
+        {
+            var client = GetAccountClient(panel, accountKey);
+            return client is Pan123WebClient web ? web.BuildDownloadContext(fileId) : client.BuildDownloadContext();
+        }
 
         /// <summary>下载条目的下行上下文（见 <see cref="BuildContextFor"/>）。</summary>
         private DownloadRequestContext BuildContextForItem(DownloadItem item)
-            => BuildContextFor(item?.Panel ?? _panel, item?.AccountKey);
+            => BuildContextFor(item?.Panel ?? _panel, item?.AccountKey, item?.Fid);
 
         /// <summary>续传任务的下行上下文（见 <see cref="BuildContextFor"/>）。</summary>
         private DownloadRequestContext BuildContextForPending(PendingInfo p)
-            => BuildContextFor(p?.Panel ?? _panel, p?.AccountKey);
+            => BuildContextFor(p?.Panel ?? _panel, p?.AccountKey, p?.Fid);
 
         /// <summary>持久化续传记录的下行上下文（见 <see cref="BuildContextFor"/>）。</summary>
         private DownloadRequestContext BuildContextForPending(PendingTask p)
-            => BuildContextFor(p?.Panel ?? _panel, p?.AccountKey);
+            => BuildContextFor(p?.Panel ?? _panel, p?.AccountKey, p?.Fid);
 
         /// <summary>
         /// 逐个取百度直链。
@@ -4133,7 +4147,7 @@ namespace ZERA
                             : (old.Threads > 0 ? old.Threads : _settings.Threads),
                         WriteMode = old.WriteMode,
                         PartsRoot = string.IsNullOrWhiteSpace(_settings.PartsRoot) ? null : _settings.PartsRoot,
-                        ResumeCannotRefresh = p?.FromShare ?? old.ResumeCannotRefresh,
+                        ResumeCannotRefresh = p != null ? p.FromShare && p.Panel != PanelKind.Lanzou : old.ResumeCannotRefresh,
                         Pending = p ?? old.Pending,
                     };
                     var captured = job;
@@ -5560,7 +5574,7 @@ namespace ZERA
                         var captured = job;
                         job.LinkRefresher = ct => RefreshLinkAsyncForPending(captured, ct);
                         // 免转存任务续传取不到新链（stoken 过期）→ 失败文案要说"需重新解析分享"
-                        job.ResumeCannotRefresh = p.FromShare;
+                        job.ResumeCannotRefresh = p.FromShare && p.Panel != PanelKind.Lanzou;
                         jobs.Add(job);
                     }
                     catch (Exception ex)
@@ -6411,6 +6425,7 @@ namespace ZERA
         private async void OnQrLogin(object sender, RoutedEventArgs e)
         {
             if (_panel == PanelKind.WebDav) { OnConfigureWebDav(sender, e); return; }
+            if (NativeCloudAccount.Supports(_panel)) { OpenNativeLogin(NativeLoginSession.SupportsQr(_panel)); return; }
             // 【2026-10-14 晚】百度扫码登录打通（passport 三段式），按平台分发到两套流程。
             // 夸克：uop 取 token → 轮询 → service_ticket 换 Cookie（换 Cookie 那步必须走
             // Python 桥绕 TLS 指纹，见 LoginQrService / QuarkPythonBridge）。
@@ -6942,7 +6957,7 @@ namespace ZERA
             _client = null;
 
             UpdateAccountCard(null, 0, 0);
-            LoginBtn.Visibility = Visibility.Visible;
+            LoginBtn.Visibility = NativeCloudAccount.Supports(_panel) ? Visibility.Collapsed : Visibility.Visible;
             AccountsBtn.Visibility = Visibility.Visible;
             ClearPanelNav();
             Log(string.IsNullOrEmpty(reason) ? "已登出" : reason);
@@ -7042,12 +7057,12 @@ namespace ZERA
             if (string.IsNullOrWhiteSpace(cookie)) { Log("账号没有可用登录凭据，请重新登录。"); return false; }
             if (!CanReplaceAccount(target, cookie)) return false;
             _loginInProgress = true;
-            QuarkPanelRadio.IsEnabled = BaiduPanelRadio.IsEnabled = WebDavPanelRadio.IsEnabled = false;
+            DownloadPanelBox.IsEnabled = AccountPanelBox.IsEnabled = false;
             try { return await ApplyLoginCoreAsync(cookie, target); }
             finally
             {
                 _loginInProgress = false;
-                QuarkPanelRadio.IsEnabled = BaiduPanelRadio.IsEnabled = WebDavPanelRadio.IsEnabled = true;
+                DownloadPanelBox.IsEnabled = AccountPanelBox.IsEnabled = true;
             }
         }
 
@@ -7078,13 +7093,15 @@ namespace ZERA
                 _settings.Who = login.Name ?? ""; _settings.AvatarUrl = login.Avatar ?? "";
                 if (!string.IsNullOrEmpty(login.Key)) AccountStore.Save(login.Key, login.Name, candidate.CookieStr, target.ToString());
                 _settings.RememberAccount(login.Key); SaveSettingsQuiet();
+                WatchNativeCredentials(candidate, login.Key, login.Name);
                 UpdateAccountCard(login.Name, 0, 0);
                 LoginBtn.Visibility = Visibility.Collapsed; AccountsBtn.Visibility = Visibility.Visible;
                 Log(PanelDisplayName(target) + "登录成功。");
                 try { await RefreshCapacityAsync(); } catch { }
                 return true;
             }
-            catch (Exception) { Log("账号登录失败，请检查凭据、服务地址与网络。"); return false; }
+            catch (PanelApiException ex) { Log("账号登录失败：" + ex.Message); return false; }
+            catch (Exception ex) { Log("账号登录失败（" + ex.GetType().Name + "），请检查凭据、服务地址与网络。"); return false; }
             finally { if (!committed) candidate?.Dispose(); }
         }
 
@@ -7657,8 +7674,8 @@ namespace ZERA
             try
             {
                 bool logged = !string.IsNullOrWhiteSpace(nick);
-                LoginBtn.Visibility = logged ? Visibility.Collapsed : Visibility.Visible;
-                AccountsBtn.Visibility = Visibility.Visible;
+                LoginBtn.Visibility = logged || NativeCloudAccount.Supports(_panel) || _panel == PanelKind.Lanzou ? Visibility.Collapsed : Visibility.Visible;
+                AccountsBtn.Visibility = _panel == PanelKind.Lanzou ? Visibility.Collapsed : Visibility.Visible;
 
                 if (!logged)
                 {
@@ -7667,14 +7684,14 @@ namespace ZERA
                     AvatarImage.Source = null;
                     AvatarImage.Visibility = Visibility.Collapsed;
                     AvatarText.Visibility = Visibility.Visible;
-                    AccountText.Text = "未登录";
+                    AccountText.Text = _panel == PanelKind.Lanzou ? "蓝奏云 · 分享下载" : "未登录";
                     AccountText.ToolTip = null;
-                    AccountHintText.Text = "登录后可浏览网盘";
+                    AccountHintText.Text = _panel == PanelKind.Lanzou ? "无需登录，粘贴链接即可解析" : "登录后可浏览网盘";
                     // 空槽：值为 0、用最浅的状态色画一条，保持占位不消失
                     CapacityBar.Value = 0;
                     CapacityBar.Foreground = (Brush)FindResource("BorderBrushStrong");
                     CapacityBar.ToolTip = null;
-                    CapacityText.Text = "容量未知";
+                    CapacityText.Text = _panel == PanelKind.Lanzou ? "分享模式" : "容量未知";
 
                     SyncLoginPageState(null, 0, 0);
                     return;
@@ -7761,8 +7778,8 @@ namespace ZERA
                     LoginAvatarImage.Source = null;
                     LoginAvatarImage.Visibility = Visibility.Collapsed;
                     LoginAvatarText.Visibility = Visibility.Visible;
-                    LoginWhoText.Text = "未登录";
-                    LoginSubText.Text = "扫码或导入 Cookie 即可登录";
+                    LoginWhoText.Text = _panel == PanelKind.Lanzou ? "无需登录" : "未登录";
+                    LoginSubText.Text = _panel == PanelKind.Lanzou ? "在下载页粘贴分享链接和提取码" : NativeCloudAccount.Supports(_panel) ? "点击授权入口配置本平台凭据" : _panel == PanelKind.WebDav ? "配置服务器地址和账号后连接" : "扫码或导入 Cookie 即可登录";
                     return;
                 }
 
@@ -7773,7 +7790,7 @@ namespace ZERA
                 LoginWhoText.Text = nick;
                 LoginSubText.Text = total > 0
                     ? "已用 " + Util.FormatSize(used) + " / 共 " + Util.FormatSize(total)
-                    : "已登录（容量获取中…）";
+                    : NativeCloudAccount.Supports(_panel) ? "已登录 · 此接入暂不查询容量" : "已登录（容量获取中…）";
             }
             catch { }
         }

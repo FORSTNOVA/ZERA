@@ -42,11 +42,19 @@ namespace ZERA.Core.Panels
         /// <summary>百度网盘。</summary>
         Baidu = 1,
         WebDav = 2,
+        Aliyun = 3,
+        Pan123 = 4,
+        Pan115 = 5,
+        Tianyi = 6,
+        Mobile139 = 7,
+        Thunder = 8,
+        Lanzou = 9,
     }
 
     /// <summary>平台能力的静态元信息，供 UI 展示与前置校验用（不涉及任何网络调用）。</summary>
     public sealed class PanelDescriptor
     {
+        public override string ToString() => DisplayName ?? Kind.ToString();
         public PanelKind Kind { get; set; }
 
         /// <summary>界面显示名。</summary>
@@ -72,6 +80,7 @@ namespace ZERA.Core.Panels
         /// 界面按平台注册的能力显示或隐藏入口。
         /// </summary>
         public bool SupportsQrLogin { get; set; }
+        public bool SupportsPasswordLogin { get; set; }
 
         /// <summary>
         /// 下载速度限制说明。百度非会员会被服务端限速，这是**平台强制的**，
@@ -306,6 +315,21 @@ namespace ZERA.Core.Panels
                     SupportsShare = false, SupportsCookieLogin = false, LoginHint = "配置 WebDAV 地址、用户名和密码" } },
             };
 
+        static PanelRegistry()
+        {
+            var names = new[] { "阿里云盘", "123 云盘", "115", "天翼云盘", "中国移动云盘", "迅雷云盘" };
+            for (int i = 0; i < names.Length; i++)
+            {
+                var kind = (PanelKind)(i + 3);
+                Descriptors.Add(kind, new PanelDescriptor { Kind = kind, DisplayName = names[i], SupportsDrive = true,
+                    SupportsShare = false, SupportsCookieLogin = false, SupportsQrLogin = NativeLoginSession.SupportsQr(kind), SupportsPasswordLogin = NativeLoginSession.SupportsPassword(kind),
+                    LoginHint = NativeCloudAccount.Guide(kind), SpeedNote = "下载速度和接口可用性取决于账号权益、平台限制与网络。" });
+            }
+            Descriptors.Add(PanelKind.Lanzou, new PanelDescriptor { Kind = PanelKind.Lanzou, DisplayName = "蓝奏云",
+                SupportsShare = true, SupportsDrive = false, SupportsCookieLogin = false,
+                LoginHint = "无需登录，粘贴蓝奏云分享链接和提取码后解析下载。", SpeedNote = "下载速度由蓝奏云服务端与网络决定。" });
+        }
+
         /// <summary>取平台静态信息；未知平台返回 null。</summary>
         public static PanelDescriptor Describe(PanelKind kind)
         {
@@ -325,6 +349,7 @@ namespace ZERA.Core.Panels
         /// </summary>
         public static IPanelClient Create(PanelKind kind, string cookie)
         {
+            if (kind == PanelKind.Pan123 && !string.IsNullOrEmpty(cookie) && NativeCloudAccount.Parse(cookie).LoginMode == "web") return new Pan123WebClient(cookie);
             switch (kind)
             {
                 case PanelKind.Quark:
@@ -333,7 +358,10 @@ namespace ZERA.Core.Panels
                     return new Api.BaiduClient(cookie);
                 case PanelKind.WebDav:
                     return new WebDavClient(cookie);
+                case PanelKind.Lanzou:
+                    return new LanzouClient();
                 default:
+                    if (NativeCloudAccount.Supports(kind)) return new NativeCloudClient(kind, cookie);
                     throw new NotSupportedException("未注册的平台: " + kind);
             }
         }
@@ -347,6 +375,7 @@ namespace ZERA.Core.Panels
             if (string.IsNullOrWhiteSpace(text))
                 return null;
 
+            if (LanzouClient.TryParseShare(text, out _, out _)) return PanelKind.Lanzou;
             string t = text.Trim().ToLowerInvariant();
             foreach (var d in Descriptors.Values)
             {

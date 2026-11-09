@@ -28,15 +28,16 @@ namespace ZERA.Core.Panels
         {
             if (client is QuarkClient q) return new QuarkAdapter(q);
             if (client is BaiduClient b) return new BaiduAdapter(b);
+            if (client is LanzouClient l) return new LanzouAdapter(l);
             return new PanelAdapter(client);
         }
         public virtual async Task<PanelLogin> LoginAsync(CancellationToken cancel = default)
         {
             var result = await Client.ValidateAsync(cancel).ConfigureAwait(false);
             return new PanelLogin { Valid = result.ok, Name = result.nick,
-                Key = Client is WebDavClient dav ? dav.AccountKey : null };
+                Key = AccountKey };
         }
-        public virtual string AccountKey => Client is WebDavClient dav ? dav.AccountKey : null;
+        public virtual string AccountKey => Client is WebDavClient dav ? dav.AccountKey : Client is NativeCloudClient native ? native.AccountKey : Client is Pan123WebClient web123 ? web123.AccountKey : null;
         public virtual void StartSession(Action expired) { }
         protected static NotSupportedException Unsupported() => new NotSupportedException("此网盘不支持该功能。");
         public static bool IsCapacityMessage(string text) => QuarkClient.IsCapacityMessage(text);
@@ -71,6 +72,11 @@ namespace ZERA.Core.Panels
         }
         public static string CredentialFingerprint(PanelKind kind, string credential)
         {
+            if (NativeCloudAccount.Supports(kind))
+            {
+                var account = NativeCloudAccount.Parse(credential);
+                return CredentialKey(kind == PanelKind.Pan123 && account.LoginMode == "web" ? "Pan123Web_" : kind + "_", string.IsNullOrEmpty(account.Identity) ? credential : account.Identity);
+            }
             if (kind == PanelKind.WebDav)
             {
                 var account = WebDavAccount.Parse(credential);
@@ -116,6 +122,15 @@ namespace ZERA.Core.Panels
         public override Task<string> MkdirAsync(string path) => _q.MkdirAsync(path);
         public override Task DeleteAsync(IList<string> ids) => _q.DeleteAsync(ids);
         public override Task PurgeRecycleAsync(IList<string> ids) => _q.PurgeRecycleAsync(ids);
+    }
+    internal sealed class LanzouAdapter : PanelAdapter
+    {
+        private readonly LanzouClient _l;
+        public LanzouAdapter(LanzouClient client) : base(client) { _l = client; }
+        public override async Task<string> GetStokenAsync(string id, string code = "")
+        { await _l.OpenShareAsync(id, code).ConfigureAwait(false); return "lanzou"; }
+        public override Task<List<QuarkFileEntry>> ShareDetailAsync(string id, string token, string directory) => _l.ListDirAsync(directory, 40);
+        public override Task<List<DownloadLink>> GetShareDownloadAsync(IList<string> ids, IList<string> tokens, string id, string token) => GetDownloadAsync(ids);
     }
     internal sealed class BaiduAdapter : PanelAdapter
     {

@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/ZERA/ZERA.csproj" />
+    <Reference Include="System.Net.Http" />
     <Resource Include="../../src/ZERA/Resources/*.ico;../../src/ZERA/Resources/*.png" Link="Resources/%(Filename)%(Extension)" />
     <Page Include="../../src/ZERA/Resources/Colors.*.xaml;../../src/ZERA/Resources/Brushes.xaml;../../src/ZERA/Resources/Starfield.*.xaml" Link="Resources/%(Filename)%(Extension)" />
   </ItemGroup>

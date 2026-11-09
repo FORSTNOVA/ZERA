@@ -85,27 +85,33 @@ namespace ZERA
 
         private void OnAccountPanelSelected(object sender, SelectionChangedEventArgs e)
         {
-            if (_syncingAccountPicker || QuarkPanelRadio == null || AccountPanelBox.SelectedIndex < 0) return;
-            var target = new[] { QuarkPanelRadio, BaiduPanelRadio, WebDavPanelRadio }[AccountPanelBox.SelectedIndex];
-            target.IsChecked = true;
+            if (_syncingAccountPicker || _suppressPanelChanged || DownloadPanelBox == null || !(AccountPanelBox.SelectedValue is PanelKind target)) return;
+            DownloadPanelBox.SelectedValue = target;
         }
 
         private void SyncWorkspaceAccountUi()
         {
             if (AccountPanelBox == null) return;
             _syncingAccountPicker = true;
-            try { AccountPanelBox.SelectedIndex = (int)_panel; }
+            try { AccountPanelBox.SelectedValue = _panel; }
             finally { _syncingAccountPicker = false; }
-            LoginBtn.Content = _panel == PanelKind.WebDav ? "连接 WebDAV" : "扫码登录";
+            bool native = NativeCloudAccount.Supports(_panel);
+            bool shareOnly = PanelRegistry.Describe(_panel)?.SupportsDrive == false;
+            LoginBtn.Visibility = AccountsBtn.Visibility = AccountRefreshBtn.Visibility = shareOnly ? Visibility.Collapsed : Visibility.Visible;
+            LoginBtn.Content = native ? "配置网盘授权" : _panel == PanelKind.WebDav ? "连接 WebDAV" : "扫码登录";
             AccountMoreButton.Content = _panel == PanelKind.Baidu ? "Cookie / 会员查询…" : "更多登录方式…";
-            AccountMoreButton.Visibility = _panel == PanelKind.WebDav ? Visibility.Collapsed : Visibility.Visible;
-            CookieFileTools.Visibility = _panel == PanelKind.WebDav ? Visibility.Collapsed : Visibility.Visible;
+            AccountMoreButton.Visibility = native || _panel == PanelKind.WebDav || shareOnly ? Visibility.Collapsed : Visibility.Visible;
+            CookieFileTools.Visibility = native || _panel == PanelKind.WebDav || shareOnly ? Visibility.Collapsed : Visibility.Visible;
             WebDavConfigureButton.Visibility = _panel == PanelKind.WebDav ? Visibility.Visible : Visibility.Collapsed;
+            NativeConfigureButton.Visibility = native ? Visibility.Visible : Visibility.Collapsed;
+            NativeQrLoginButton.Visibility = NativeLoginSession.SupportsQr(_panel) ? Visibility.Visible : Visibility.Collapsed;
+            NativePasswordLoginButton.Visibility = NativeLoginSession.SupportsPassword(_panel) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void OnAccountLoginAction(object sender, RoutedEventArgs e)
         {
             if (_panel == PanelKind.WebDav) OnConfigureWebDav(sender, e);
+            else if (NativeCloudAccount.Supports(_panel)) OnConfigureNativeCloud(sender, e);
             else
             {
                 // One QR entry prevents starting competing polls from duplicate buttons.

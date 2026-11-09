@@ -552,11 +552,7 @@
                             </StackPanel>
                             <WrapPanel Grid.Row="1" Margin="0,0,0,12">
                                 <Border HorizontalAlignment="Left" CornerRadius="14" Background="{DynamicResource SurfaceSunkenBrush}" Padding="3" Margin="0,0,12,8" ToolTip="选择网盘平台。切换平台会各自保留各自的登录状态。">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton x:Name="QuarkPanelRadio" Content="夸克网盘" Checked="OnPanelChanged" Style="{StaticResource SegmentedRadio}" Margin="0" />
-                                        <RadioButton x:Name="BaiduPanelRadio" Content="百度网盘" Checked="OnPanelChanged" Style="{StaticResource SegmentedRadio}" Margin="2,0,0,0" />
-                                        <RadioButton x:Name="WebDavPanelRadio" Content="WebDAV" Checked="OnPanelChanged" Style="{StaticResource SegmentedRadio}" Margin="2,0,0,0" />
-                                    </StackPanel>
+                                    <ComboBox x:Name="DownloadPanelBox" Width="190" DisplayMemberPath="DisplayName" SelectedValuePath="Kind" SelectionChanged="OnPanelChanged" Style="{StaticResource AppComboBox}" ItemContainerStyle="{StaticResource AppComboBoxItem}" AutomationProperties.Name="选择下载网盘" />
                                 </Border>
                                 <Border HorizontalAlignment="Left" CornerRadius="14" Background="{DynamicResource SurfaceSunkenBrush}" Padding="3" Margin="0,0,0,8">
                                     <StackPanel Orientation="Horizontal">
@@ -803,11 +799,7 @@
                             <StackPanel Margin="20,18,20,24" MaxWidth="960" HorizontalAlignment="Stretch">
                                 <TextBlock Text="账号" Style="{StaticResource PageTitleText}" Margin="0,0,0,4" />
                                 <TextBlock x:Name="LoginPageTitle" Text="登录后可浏览「我的网盘」、转存分享文件；不登录也能用直链下载" Style="{StaticResource TertiaryText}" Margin="0,0,0,18" TextWrapping="Wrap" />
-                                <ComboBox x:Name="AccountPanelBox" Width="210" HorizontalAlignment="Left" Margin="0,0,0,18" Style="{StaticResource AppComboBox}" ItemContainerStyle="{StaticResource AppComboBoxItem}" SelectionChanged="OnAccountPanelSelected" AutomationProperties.Name="选择账号所属网盘">
-                                    <ComboBoxItem Content="夸克网盘" />
-                                    <ComboBoxItem Content="百度网盘" />
-                                    <ComboBoxItem Content="WebDAV" />
-                                </ComboBox>
+                                <ComboBox x:Name="AccountPanelBox" Width="210" DisplayMemberPath="DisplayName" SelectedValuePath="Kind" HorizontalAlignment="Left" Margin="0,0,0,18" Style="{StaticResource AppComboBox}" ItemContainerStyle="{StaticResource AppComboBoxItem}" SelectionChanged="OnAccountPanelSelected" AutomationProperties.Name="选择账号所属网盘" />
                                 <!-- 【2026-10-14 多平台】百度也有可编程的扫码登录通道
                                  （passport 三段式，当晚实测确认），所以这张卡两个平台共用：
                                  夸克在本地生成二维码，百度直接显示百度下发的二维码 PNG。
@@ -936,6 +928,9 @@
                                                     <Button x:Name="LoginBtn" Content="扫码登录" Click="OnAccountLoginAction" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
                                                     <Button x:Name="AccountsBtn" Content="切换 / 管理账号" Click="OnOpenAccounts" Style="{StaticResource SecondaryButton}" ToolTip="管理已记住的网盘账号和 WebDAV 连接" Margin="0,0,8,8" />
                                                     <Button x:Name="WebDavConfigureButton" Content="接入 / 编辑 WebDAV" Click="OnConfigureWebDav" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                                                    <Button x:Name="NativeQrLoginButton" Content="扫码登录…" Click="OnNativeQrLogin" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8" />
+                                                    <Button x:Name="NativePasswordLoginButton" Content="账号密码登录…" Click="OnNativePasswordLogin" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                                                    <Button x:Name="NativeConfigureButton" Content="高级凭据…" Click="OnConfigureNativeCloud" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
                                                     <!-- 【2026-10-03】「登出」按钮按用户要求删除（觉得多余）。
                                                      退出登录的能力没丢：挪进了「切换账号」窗口里，
                                                      那里才是账号管理的地方。 -->
@@ -959,7 +954,7 @@
                                                 </Grid>
                                                 <StackPanel>
                                                     <TextBlock Text="小贴士" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,6" />
-                                                    <TextBlock Style="{StaticResource ProseText}" Text="· 登录信息经系统加密后存在本地配置里，不会上传到任何服务器。" />
+                                                    <TextBlock Style="{StaticResource ProseText}" Text="· 账号保存在本机；连接网盘时，授权凭据仅用于对应平台的服务请求。" />
                                                     <!-- 【2026-10-03 再改】上一版写的是
                                                  「登录状态过期时不用重新扫码，再点一次「获取二维码」即可」——
                                                  这句是**错的**：它把「二维码本身过期」和「登录态过期」
@@ -969,8 +964,8 @@
                                                  · 登录态过期（Cookie 失效）→ **必须重新扫码**，
                                                    只点「获取二维码」只会得到一张新码，不扫不登录。
                                                  按用户给的措辞改掉，避免误导。 -->
-                                                    <TextBlock Style="{StaticResource ProseText}" Margin="0,4,0,0" Text="· 登录状态过期时可以重新扫码，点击「获取二维码」即可。" />
-                                                    <TextBlock Style="{StaticResource ProseText}" Margin="0,4,0,0" Text="· 扫码得到的是网页版登录态，和手机 App 端互不影响、可同时使用。" />
+                                                    <TextBlock Style="{StaticResource ProseText}" Margin="0,4,0,0" Text="· 授权过期时，请按所选平台的说明重新扫码、导入令牌或更新连接配置。" />
+                                                    <TextBlock Style="{StaticResource ProseText}" Margin="0,4,0,0" Text="· 各平台分别记忆账号；有未结束任务时，先完成或取消任务再更换该平台账号。" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>

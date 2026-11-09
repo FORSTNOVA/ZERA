@@ -14,10 +14,7 @@ namespace ZERA
             // Profiles predating multi-platform support belong to Quark.
             string name = string.IsNullOrEmpty(profile?.Panel) ? "Quark" : profile.Panel;
             panel = PanelKind.Quark;
-            if (name.Equals("Quark", StringComparison.OrdinalIgnoreCase)) return true;
-            if (name.Equals("Baidu", StringComparison.OrdinalIgnoreCase)) { panel = PanelKind.Baidu; return true; }
-            if (name.Equals("WebDav", StringComparison.OrdinalIgnoreCase)) { panel = PanelKind.WebDav; return true; }
-            return false;
+            return Enum.TryParse(name, true, out panel) && PanelRegistry.Describe(panel) != null;
         }
 
         private bool HasUnfinishedPanelTasks(PanelKind panel) => _tasks.Any(t =>
@@ -57,9 +54,7 @@ namespace ZERA
             _suppressPanelChanged = true;
             try
             {
-                QuarkPanelRadio.IsChecked = target == PanelKind.Quark;
-                BaiduPanelRadio.IsChecked = target == PanelKind.Baidu;
-                WebDavPanelRadio.IsChecked = target == PanelKind.WebDav;
+                DownloadPanelBox.SelectedValue = target;
             }
             finally { _suppressPanelChanged = false; }
             UpdatePanelDependentUi();

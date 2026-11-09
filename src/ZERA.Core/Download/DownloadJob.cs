@@ -159,6 +159,7 @@ namespace ZERA.Core.Download
             {
                 if (string.IsNullOrEmpty(Dest) || string.IsNullOrEmpty(Fid)) return false;
                 if (!FromShare) return true;                       // 我的网盘：只需 fid
+                if (Panel == Panels.PanelKind.Lanzou) return Fid.StartsWith("lanzou:", StringComparison.Ordinal);
                 if (Panel == Panels.PanelKind.Baidu)
                 {
                     // 百度分享任务的续传能力弱于夸克：取链需要分享页实时解析出的

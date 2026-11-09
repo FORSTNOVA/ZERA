@@ -67,6 +67,13 @@ namespace ZERA.Core.Support
             // 先识别平台，决定用哪套正则
             var kind = Panels.PanelRegistry.Detect(url);
 
+            if (kind == Panels.PanelKind.Lanzou && Panels.LanzouClient.TryParseShare(url, out var shareUrl, out var password))
+            {
+                info.PwdId = shareUrl;
+                info.Passcode = password;
+                return info;
+            }
+
             if (kind == Panels.PanelKind.Baidu)
             {
                 ParseBaidu(url, info);

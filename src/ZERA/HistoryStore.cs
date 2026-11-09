@@ -254,6 +254,7 @@ namespace ZERA
             get
             {
                 if (string.IsNullOrEmpty(Dest) || string.IsNullOrEmpty(Fid)) return false;
+                if (Panel == ZERA.Core.Panels.PanelKind.Lanzou) return Fid.StartsWith("lanzou:", StringComparison.Ordinal);
                 if (FromShare) return !string.IsNullOrEmpty(Token) && !string.IsNullOrEmpty(PwdId)
                                   && !string.IsNullOrEmpty(Stoken);
                 return true;   // 我的网盘：只需 fid
